@@ -1,0 +1,94 @@
+plugins {
+    id 'org.springframework.boot' version '3.0.10'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'java-library'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
+}
+
+group = 'com.tencent'
+version = '0.0.3-SNAPSHOT'
+
+
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/central' }
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    mavenCentral()
+}
+
+dependencies {
+    // fastjson
+    implementation 'com.alibaba:fastjson:1.2.83'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'//操作数据库
+    implementation 'com.mysql:mysql-connector-j:8.0.33'  // ✅ 正确的mysql依赖！
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'com.tencentcloudapi:tencentcloud-sdk-java:3.1.356'
+    implementation 'com.tencentcloudapi:scf-java-events:0.0.4'
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:6.0.0'
+    //spring3
+    implementation("com.github.xiaoymin:knife4j-openapi3-jakarta-spring-boot-starter:4.4.0")
+    //spring2
+//    implementation("com.github.xiaoymin:knife4j-openapi2-spring-boot-starter:4.4.0")
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+application {
+    mainClass = 'com.tencent.scfspringbootjava8.ScfSpringbootJava8Application'
+}
+
+// 配置 shadowJar 任务
+shadowJar {
+    archiveBaseName.set(project.name)
+    archiveClassifier.set('') // 去除 "-all" 后缀
+    archiveVersion.set(project.version.toString())
+    mergeServiceFiles()
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
+}
+
+// 解决任务依赖问题
+tasks.named('bootJar') {
+    enabled = false // 禁用默认的bootJar任务
+}
+
+tasks.named('jar') {
+    enabled = true // 启用普通jar任务
+}
+
+// 确保build任务依赖shadowJar
+build.dependsOn shadowJar
+
+// 显式声明Spring Boot打包任务对shadowJar的依赖
+tasks.named('bootDistZip') {
+    dependsOn shadowJar
+    from shadowJar.outputs
+}
+
+tasks.named('bootDistTar') {
+    dependsOn shadowJar
+    from shadowJar.outputs
+}
+
+tasks.named('bootStartScripts') {
+    dependsOn shadowJar
+    classpath = files(shadowJar.outputs.files.singleFile)
+}
+
+// 配置任务执行顺序
+tasks.named('assemble') {
+    dependsOn shadowJar
+}
